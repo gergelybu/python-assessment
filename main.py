@@ -1,5 +1,4 @@
 import json
-from slides import Slide
 import os
 from pptx import Presentation
 from pptx.util import Inches
@@ -48,23 +47,18 @@ def create_plot_slide(slide_layout, title, data_filename, config):
         content_placeholder = slide.placeholders[1]
         content_placeholder.text = ''
 
-    # Load data from the .dat file using numpy
     data = np.loadtxt(data_filename, delimiter=';')
 
-    # Assuming the data contains two columns, x and y
     x = data[:, 0]
     y = data[:, 1]
 
-    # Create a plot using matplotlib
     plt.plot(x, y)
     plt.xlabel(config.get('x-label', ''))
     plt.ylabel(config.get('y-label', ''))
 
-    # Save the plot to a file
     plot_filename = 'plot.png'
     plt.savefig(plot_filename)
 
-    # Add the plot to the slide
     slide.shapes.add_picture(plot_filename, Inches(2), Inches(2), width=Inches(6))
 
 
@@ -72,17 +66,13 @@ def create_plot_slide(slide_layout, title, data_filename, config):
 if __name__ == "__main__":
     json_file_path = input("Enter the path to the configuration file: ")
 
-    # Load JSON data from the specified file
     with open(json_file_path) as json_file:
         json_data = json.load(json_file)
 
-    # Create a presentation object
     presentation = Presentation()
 
-    # Define slide layouts
     slide_layouts = presentation.slide_layouts
 
-    # Process each slide data from the JSON
     for slide_data in json_data['presentation']:
         slide_type = slide_data.get('type')
         slide_title = slide_data.get('title')
