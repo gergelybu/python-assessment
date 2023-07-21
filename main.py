@@ -1,72 +1,109 @@
 import json
 from slides import Slide
+import os
 from pptx import Presentation
 from pptx.util import Inches
+import numpy as np
+import matplotlib.pyplot as plt
 
-def create_title_slide(slide, title, content):
-    slide.shapes.title.text = title
-    slide.placeholders[1].text = content
+def create_title_slide(slide_layout, title, content):
+    slide = presentation.slides.add_slide(slide_layout)
+    title_placeholder = slide.shapes.title
+    title_placeholder.text = title
+    if content:
+        content_placeholder = slide.placeholders[1]
+        content_placeholder.text = content
 
-def create_text_slide(slide, title, content):
-    slide.shapes.title.text = title
-    slide.placeholders[1].text = content
+def create_text_slide(slide_layout, title, content):
+    slide = presentation.slides.add_slide(slide_layout)
+    title_placeholder = slide.shapes.title
+    title_placeholder.text = title
+    if content:
+        content_placeholder = slide.placeholders[1]
+        content_placeholder.text = content
 
-def create_list_slide(slide, title, items):
-    slide.shapes.title.text = title
-    slide.placeholders[1].text = content
+def create_list_slide(slide_layout, title, content):
+    slide = presentation.slides.add_slide(slide_layout)
+    title_placeholder = slide.shapes.title
+    title_placeholder.text = title
+    if content:
+        content_placeholder = slide.placeholders[1]
+        content_placeholder.text = ''
+        for item in content:
+            content_placeholder.text += f"- {item['text']}\n"
 
-def create_picture_slide(slide, title, image_filename):
-    slide.shapes.title.text = title
-    slide.placeholders[1].text = content
+def create_picture_slide(slide_layout, title, image_filename):
+    slide = presentation.slides.add_slide(slide_layout)
+    title_placeholder = slide.shapes.title
+    title_placeholder.text = title
+    left = Inches(2)
+    top = Inches(2)
+    pic = slide.shapes.add_picture(image_filename, left, top, width=Inches(6))
 
-def create_plot_slide(slide, title, data, config):
-    slide.shapes.title.text = title
-    slide.placeholders[1].text = content
+def create_plot_slide(slide_layout, title, data_filename, config):
+    slide = presentation.slides.add_slide(slide_layout)
+    title_placeholder = slide.shapes.title
+    title_placeholder.text = title
+    if len(slide.placeholders) > 1:
+        content_placeholder = slide.placeholders[1]
+        content_placeholder.text = ''
 
-def create_presentation(slides):
-    presentation = Presentation()
+    # Load data from the .dat file using numpy
+    data = np.loadtxt(data_filename, delimiter=';')
 
-    for slide_data in slides:
-        slide_type = slide_data.slide_type
-        slide_title = slide_data.title
-        slide_content = slide_data.content
+    # Assuming the data contains two columns, x and y
+    x = data[:, 0]
+    y = data[:, 1]
 
-    if slide_type == 'title':
-        slide = presentation.slides.add_slide(presentation.slide_layouts[0])
-        create_title_slide(slide, slide_title, slide_content)
-    elif slide_type == 'text':
-        slide = presentation.slides.add_slide(presentation.slide_layouts[1])
-        create_text_slide(slide, slide_title, slide_content)
-    elif slide_type == 'list':
-        slide = presentation.slides.add_slide(presentation.slide_layouts[1])
-        create_list_slide(slide, slide_title, slide_content)
-    elif slide_type == 'picture':
-        slide = presentation.slides.add_slide(presentation.slide_layouts[1])
-        create_picture_slide(slide, slide_title, slide_content)
-    elif slide_type == 'plot':
-        slide = presentation.slides.add_slide(presentation.slide_layouts[1])
-        create_plot_slide(slide, slide_title, slide_content, slide_data.configuration)
+    # Create a plot using matplotlib
+    plt.plot(x, y)
+    plt.xlabel(config.get('x-label', ''))
+    plt.ylabel(config.get('y-label', ''))
 
-    return presentation
+    # Save the plot to a file
+    plot_filename = 'plot.png'
+    plt.savefig(plot_filename)
+
+    # Add the plot to the slide
+    slide.shapes.add_picture(plot_filename, Inches(2), Inches(2), width=Inches(6))
 
 
 # Asking for the configuration file from the user
-json_file_path = input("Enter the path to the configuration file: ")
+if __name__ == "__main__":
+    json_file_path = input("Enter the path to the configuration file: ")
 
-with open(json_file_path) as json_file:
-    json_data = json.load(json_file)
+    # Load JSON data from the specified file
+    with open(json_file_path) as json_file:
+        json_data = json.load(json_file)
 
-slides = []
-for slide_data in json_data['presentation']:
-    slide_type = slide_data['type']
-    slide_title = slide_data['title']
-    slide_content = slide_data['content']
-    configuration = slide_data.get('configuration', None)
-    slide = Slide(slide_type, slide_title, slide_content, configuration)
-    slides.append(slide)
+    # Create a presentation object
+    presentation = Presentation()
 
-presentation = create_presentation(slides)
+    # Define slide layouts
+    slide_layouts = presentation.slide_layouts
 
-output_file_path = input("Enter the path to save the presentation: ")
+    # Process each slide data from the JSON
+    for slide_data in json_data['presentation']:
+        slide_type = slide_data.get('type')
+        slide_title = slide_data.get('title')
+        slide_content = slide_data.get('content')
 
-presentation.save(output_file_path)
+        if slide_type == 'title':
+            create_title_slide(slide_layouts[0], slide_title, slide_content)
+
+        elif slide_type == 'text':
+            create_text_slide(slide_layouts[1], slide_title, slide_content)
+
+        elif slide_type == 'list':
+            create_list_slide(slide_layouts[1], slide_title, slide_content)
+
+        elif slide_type == 'picture':
+            image_filename = os.path.join(os.path.dirname(json_file_path), slide_content)
+            create_picture_slide(slide_layouts[5], slide_title, image_filename)
+
+        elif slide_type == 'plot':
+            data_filename = os.path.join(os.path.dirname(json_file_path), slide_content)
+            create_plot_slide(slide_layouts[5], slide_title, data_filename, slide_data.get('configuration', {}))
+
+    # Save the presentation to a file
+    presentation.save('output_presentation.pptx')
